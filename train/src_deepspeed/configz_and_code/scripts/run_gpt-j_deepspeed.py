@@ -6,7 +6,11 @@ from transformers import (
     DataCollatorForSeq2Seq,
     AutoTokenizer,
     set_seed,
+    GPTJForCausalLM,
+    AutoModelForCausalLM,
+    default_data_collator,
 )
+
 
 from datasets import load_from_disk
 import torch
@@ -15,7 +19,7 @@ import evaluate
 
 import deepspeed
 from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
-
+from transformers import Trainer, TrainingArguments
 import nltk
 
 
@@ -66,8 +70,9 @@ def training_function(args):
     train_dataset = load_from_disk(args.train_dataset_path)
     eval_dataset = load_from_disk(args.test_dataset_path)
     tokenizer = AutoTokenizer.from_pretrained(args.model_id)
+    tokenizer.pad_token = -100
     # load model from the hub
-    model = AutoModelForSeq2SeqLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
         use_cache=False if args.gradient_checkpointing else True,  # this is needed for gradient checkpointing
         cache_dir = "/tmp/input/" # For instance storage instance such as p4d.24xlarge, you can put the file under /tmp which has enough storage space
@@ -104,15 +109,16 @@ def training_function(args):
     #If you just want to save the best model weights, you can set the output_dir to temporary path such as '/tmp' on p4d.24xlarge;
     #And if you want to save all of the checkpoint during the training, you can set the output_dir to the checkponit local path (it will impact the train speed for multi-nodes training. Because SageMaker will upload the checkpoint to S3 nearly real-time, it will occupy the networking bandwidth and impact the communication efficiency between nodes in the cluster).
     output_dir = '/tmp'
-    training_args = Seq2SeqTrainingArguments(
+    #training_args = Seq2SeqTrainingArguments(
+    training_args = TrainingArguments(
         output_dir=output_dir,
         per_device_train_batch_size=args.per_device_train_batch_size,
         per_device_eval_batch_size=args.per_device_eval_batch_size,
-        predict_with_generate=True,
-        generation_max_length=args.generation_max_length,
-        generation_num_beams=args.generation_num_beams,
-        fp16=False,  # T5 overflows with fp16
-        bf16=args.bf16,  # Use BF16 if available
+        #predict_with_generate=True,
+        #generation_max_length=args.generation_max_length,
+        #generation_num_beams=args.generation_num_beams,
+        fp16=True,  # T5 overflows with fp16
+        #bf16=args.bf16,  # Use BF16 if available
         learning_rate=args.learning_rate,
         num_train_epochs=args.epochs,
         max_steps = 80,      
@@ -131,12 +137,14 @@ def training_function(args):
     )
 
     # Create Trainer instance
-    trainer = Seq2SeqTrainer(
+    #trainer = Seq2SeqTrainer(
+    trainer = Trainer(    
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        data_collator=data_collator,
+        #data_collator=data_collator,
+        data_collator = default_data_collator
         #compute_metrics=compute_metrics,    #When using compute_metrics, the evaluation procedure is very slow. Here it is commented out.
     )
 

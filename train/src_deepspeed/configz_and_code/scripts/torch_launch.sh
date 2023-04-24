@@ -27,7 +27,7 @@ DS_CONFIG="${WORKING_DIR}/configs/gpt-j-deepspeed.json"
 #Configure the parameters for your training according to your model and dataset.
 #Note: you should set the corresponding paths of train_dataset_path and test_dataset_path according to your input data channel name.
 EPOCHS=1
-model_id="google/flan-t5-xxl"
+model_id="EleutherAI/gpt-j-6b"
 train_dataset_path='/opt/ml/input/data/training'
 test_dataset_path='/opt/ml/input/data/test'
 learning_rate=0.0001
@@ -48,7 +48,7 @@ OPTS+=" --deepspeed"
 OPTS+=" --deepspeed_config ${DS_CONFIG}"
 OPTS+=" --epochs ${EPOCHS}"
 
-CMD="python -m torch.distributed.launch ${DISTRIBUTED_ARGS} ${WORKING_DIR}/scripts/run_gpt-j_deepspeed.py ${OPTS}"
+CMD="python -m torch.distributed.launch ${DISTRIBUTED_ARGS} ${WORKING_DIR}/scripts/run_gpt-j_deepspeed-v2.py ${OPTS}"
 
 echo ${CMD}
 mkdir -p ${SAVE_PATH}
